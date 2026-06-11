@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Light theme (toggle) */
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --primary: 152 100% 41%; /* #00D26A — the CartCompare green */
+    --primary-foreground: 0 0% 0%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 42%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 152 100% 41%;
+  }
+
+  /* Dark theme (default) — palette migrated from the original prototype */
+  .dark {
+    --background: 0 0% 4%; /* #0A0A0A */
+    --foreground: 0 0% 94%; /* #F0F0F0 */
+    --card: 0 0% 7%; /* #111111 */
+    --card-foreground: 0 0% 94%;
+    --primary: 152 100% 41%;
+    --primary-foreground: 0 0% 0%;
+    --muted: 0 0% 10%; /* #1A1A1A */
+    --muted-foreground: 0 0% 42%; /* #6B6B6B */
+    --destructive: 0 100% 63%; /* #FF4444 */
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 12%; /* #1E1E1E */
+    --input: 0 0% 12%;
+    --ring: 152 100% 41%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}

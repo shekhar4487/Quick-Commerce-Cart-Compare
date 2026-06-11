@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum CardType {
+  CREDIT
+  DEBIT
+}
+
+enum OfferType {
+  PERCENT
+  FLAT
+}
+
+// ── NextAuth models ───────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── App models ────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  phone         String?   @unique
+  image         String?
+  plan          Plan      @default(FREE)
+  planExpiresAt DateTime?
+
+  // Razorpay
+  razorpayCustomerId     String? @unique
+  razorpaySubscriptionId String?
+
+  // Platforms where the user has already placed a first order (first-order offers no longer apply)
+  firstOrderDone     String[] @default([])
+  // Enabled delivery platforms (empty = all enabled)
+  preferredPlatforms String[] @default([])
+  // { whatsapp: boolean, email: boolean, dealAlerts: boolean }
+  notificationPrefs  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  cards       UserCard[]
+  lists       GroceryList[]
+  comparisons ComparisonResult[]
+}
+
+model UserCard {
+  id       String   @id @default(cuid())
+  userId   String
+  bankId   String // hdfc | sbi | icici | axis | kotak | idfc | amex | rbl
+  cardName String // e.g. "Millennia", "Credit Card"
+  cardType CardType @default(CREDIT)
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bankId, cardName])
+  @@index([userId])
+}
+
+model GroceryList {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  items     Json // string[] — one item per entry, e.g. "Amul Butter 500g x2"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comparisons ComparisonResult[]
+
+  @@index([userId])
+}
+
+model ComparisonResult {
+  id         String   @id @default(cuid())
+  userId     String
+  listId     String?
+  items      Json // ParsedItem[] snapshot of what was compared
+  results    Json // PlatformResult[] full breakdown per platform
+  bestApp    String
+  totalSaved Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list GroceryList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model Offer {
+  id             String    @id @default(cuid())
+  platform       String // zepto | instamart | bigbasket | flipkart-minutes
+  bankId         String? // null → app-only offer, no card needed
+  cardKeyword    String? // e.g. "Flipkart" → requires a card whose name contains this
+  description    String
+  offerType      OfferType
+  discountValue  Float // 0.10 for 10% (PERCENT) or 50 for ₹50 (FLAT)
+  maxDiscount    Int
+  minOrder       Int       @default(0)
+  appOnly        Boolean   @default(false)
+  firstOrderOnly Boolean   @default(false)
+  validUntil     DateTime?
+  isActive       Boolean   @default(true)
+  source         String    @default("seed") // seed | scraped | manual
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([platform, isActive])
+}
+
+model ScrapedPrice {
+  id           String   @id @default(cuid())
+  platform     String
+  productName  String // exact name as shown on the platform
+  productQuery String // normalized search query that produced this match
+  price        Float
+  unit         String? // "500 g", "1 L" …
+  unitPrice    Float? // normalized ₹ per 100g / 100ml when parseable
+  url          String?
+  scrapedAt    DateTime @default(now())
+
+  @@index([platform, productQuery, scrapedAt])
+}

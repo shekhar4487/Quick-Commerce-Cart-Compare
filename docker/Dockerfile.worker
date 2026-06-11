@@ -1,0 +1,23 @@
+# Scraper worker — isolated container with Playwright + Chromium baked in.
+# Build from the repo root:  docker build -f docker/Dockerfile.worker -t cartcompare-worker .
+FROM mcr.microsoft.com/playwright:v1.47.2-jammy
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma
+RUN npm install --omit=dev --ignore-scripts && npx prisma generate
+
+COPY tsconfig.json ./
+COPY lib ./lib
+COPY jobs ./jobs
+COPY scraper ./scraper
+COPY types ./types
+
+# tsx is needed at runtime to execute TypeScript directly.
+RUN npm install tsx
+
+# Run as the non-root user the Playwright image ships with.
+USER pwuser
+
+CMD ["npx", "tsx", "jobs/worker.ts"]
